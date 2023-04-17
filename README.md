@@ -1,6 +1,4 @@
 # SPINit-py
-Module to load SPINit rawdata into Python 3.
-
 Python 3 module for loading, processing and analyzing SPINit log files.
 
 It is especially oriented towards SPINit acquired on a SpinAligner setup (Build-up curve / frequency sweep).
