@@ -26,6 +26,4 @@ class SPINitExp(object):
         """
         
         """
-        self.params = dict()
-        self.data = np.array([])
-        
+
