@@ -24,6 +24,12 @@ class SPINitExp(object):
     def __init__(self, exp_dataset_path:str, **kwargs) -> None:
         
         """
+        0. verify exp_dataset_path
+            confirm the existence of:
+            i.  data.dat    : binary data file
+            ii. Serie.xml   : parameter file
+            iii.header.xml  : parameter file
+
         
         """
-
+        
