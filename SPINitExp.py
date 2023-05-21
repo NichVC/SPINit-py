@@ -110,7 +110,24 @@ class SPINitExp(object):
         plt.imshow(np.abs(self.data), vmax=data_extremum, vmin= -1*data_extremum, cmap='seismic')
         plt.show()
 
+class SPINitSpectrum(SPINitExp):
+    """
+    Container class for simple 1D dataset
+    """
+
+    def __init__(self, exp_dataset_path:str, **kwargs):
+        super().__init__(exp_dataset_path, **kwargs)
+        self.spectrum = self.FT_data()
+
+    def FT_data(self):
+        return np.fft.fftshift(np.fft.fft(self.data))
+    
 class SPINitEvolution(SPINitExp):
+    """
+    Container class for time dependent multi-dimensional experiments such as solid state build-ups
+    The first dimension (outer-most) is the dimension of time-evolution
+    """
+
     def __init__(self, exp_dataset_path:str, **kwargs):
         super().__init__(exp_dataset_path, **kwargs)
         self.processed_data = self.process_data()
@@ -124,6 +141,10 @@ class SPINitEvolution(SPINitExp):
 
 
 class SPINitSweep(SPINitExp):
+    """
+    Container class for multi-dimensional experiments with parameter sweeps, such as Microwave Frequency/Power sweeps
+    The first dimension (outer-most) is the dimension of parameter sweep
+    """
     def __init__(self, exp_dataset_path:str, **kwargs):
         super().__init__(exp_dataset_path, **kwargs)
         self.sweep_params = self._load_sweep_params()
@@ -139,6 +160,6 @@ class SPINitSweep(SPINitExp):
         return dict(zip(params, vals))
 
     def process_data(self):
-        
+
         return NotImplemented
 
