@@ -34,10 +34,6 @@ class SPINitExp(object):
 
     """
 
-
-
-
-
     
     def __init__(self, exp_dataset_path:str, **kwargs) -> None:
         
@@ -108,7 +104,7 @@ class SPINitExp(object):
         fid = np.squeeze(fid)
         return fid
 
-    def plot_data_magnitude(self):
+    def plot_data_magnitude_2d(self):
         data_extremum = np.max(np.abs(self.data))
         plt.figure()
         plt.imshow(np.abs(self.data), vmax=data_extremum, vmin= -1*data_extremum, cmap='seismic')
