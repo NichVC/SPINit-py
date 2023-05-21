@@ -69,10 +69,10 @@ class SPINitExp(object):
 
     def _load_params(self)->Dict:
         
-        Serie_path = os.path.join(self._file_paths['Serie'])
+        Serie_path = self._file_paths['Serie']
         Serie_dict = self._generate_param_dict(Serie_path)
 
-        header_path = os.path.join(self._file_paths['header'])
+        header_path = self._file_paths['header']
         header_dict = self._generate_param_dict(header_path)
 
 
@@ -109,3 +109,36 @@ class SPINitExp(object):
         plt.figure()
         plt.imshow(np.abs(self.data), vmax=data_extremum, vmin= -1*data_extremum, cmap='seismic')
         plt.show()
+
+class SPINitEvolution(SPINitExp):
+    def __init__(self, exp_dataset_path:str, **kwargs):
+        super().__init__(exp_dataset_path, **kwargs)
+        self.processed_data = self.process_data()
+        self.fit_model = self.fit_data()
+
+    def process_data(self):
+        return NotImplemented
+    
+    def fit_data(self):
+        return NotImplemented
+
+
+class SPINitSweep(SPINitExp):
+    def __init__(self, exp_dataset_path:str, **kwargs):
+        super().__init__(exp_dataset_path, **kwargs)
+        self.sweep_params = self._load_sweep_params()
+        self.processed_data = self.process_data()
+
+    def _load_sweep_params(self):
+        xml = ET.parse(self._file_paths['Serie'])
+        root = xml.getroot()
+        elems = root.findall(".//setUpQueue//commands//parameters//name")
+        params = [ elem.text for elem in list(elems)]
+        elems = root.findall(".//setUpQueue//commands//parameters//value")
+        vals  = [ elem.text for elem in list(elems)]
+        return dict(zip(params, vals))
+
+    def process_data(self):
+        
+        return NotImplemented
+
