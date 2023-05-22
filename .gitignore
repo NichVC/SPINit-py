@@ -117,6 +117,7 @@ dmypy.json
 
 # VSCODE IDE
 .vscode/*
+.vscode/
 .history
 
 #Pycharm IDE
