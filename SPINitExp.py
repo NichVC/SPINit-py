@@ -18,6 +18,7 @@ import matplotlib.cm as cm
 DATA_PROCESSING_PARAMETERS = {
     'start_timing_at_zero'          : False,
     'signal_processing_method'      : None,
+    'signal_processing_mode'        : "Magnitude",
     'frequency_domain_upper_bound'  : None,
     'frequency_domain_lower_bound'  : None
 }
@@ -154,7 +155,14 @@ class SPINitExp(object):
         """
         Contract the direct dimension (F1) of the FID using <direct_fid_summation> algorithm
         """
-        return np.sum(np.abs(self.data), axis=1)
+        if self.data_processing_params['signal_processing_mode'] == 'Magnitude':
+            return np.sum(np.abs(self.data), axis=1)
+        elif self.data_processing_params['signal_processing_mode'] == 'Real':
+            return np.sum(np.real(self.data), axis=1)
+        elif self.data_processing_params['signal_processing_mode'] == 'Imaginary':
+            return np.sum(np.imag(self.data), axis=1)
+        else:
+            raise ValueError("signal_process_mode can only be chose from the three following options: Magnitude, Real, Imaginary")
 
 
 
