@@ -15,6 +15,12 @@ import matplotlib.cm as cm
 
 # In-house packages
 
+DATA_PROCESSING_PARAMETERS = {
+    'start_timing_at_zero'          : False,
+    'signal_processing_method'      : None,
+    'frequency_domain_upper_bound'  : None,
+    'frequency_domain_lower_bound'  : None
+}
 
 FILE_PATH_TEMPLATE = {
     "data"  : None,
@@ -38,19 +44,29 @@ class SPINitExp(object):
     def __init__(self, exp_dataset_path:str, **kwargs) -> None:
         
         """
-        0. verify exp_dataset_path
+        0. update parameters for post-processing        
+        1. verify exp_dataset_path
             confirm the existence of:
             i.  data.dat    : binary data file
             ii. Serie.xml   : parameter file
             iii.header.xml  : parameter file
-        1. load parameters from files
-        2. load data from file
+        2. load parameters from files
+        3. load data from file
         
         """
+        self.data_processing_params = self._update_data_processing_params(kwargs)
         self._file_paths = self._verify_dataset(exp_dataset_path)
 
         self.params = self._load_params()
         self.data = self._load_data()
+
+    def _update_data_processing_params(self, kwargs):
+        """
+        parse possible tags for post-processing
+        """
+        recon_params = copy.deepcopy(DATA_PROCESSING_PARAMETERS)
+        recon_params.update((k, kwargs[k]) for k in (recon_params.keys() & kwargs.keys()) )
+        return recon_params  
 
     def _verify_dataset(self, exp_dataset_path):
         file_paths = FILE_PATH_TEMPLATE
@@ -110,6 +126,38 @@ class SPINitExp(object):
         plt.imshow(np.abs(self.data), vmax=data_extremum, vmin= -1*data_extremum, cmap='seismic')
         plt.show()
 
+    def _contract_f1_gbe(self):
+        """
+        Contract the direct dimension (F1) of the FID using <global background estimation> algorithm
+        """
+        return NotImplemented
+    
+    def _contract_f1_fds(self):
+        """
+        Contract the direct dimension (F1) of the FID using <frequency_domain_summation> algorithm
+        """
+        return NotImplemented    
+
+    def _contract_f1_hfs(self):
+        """
+        Contract the direct dimension (F1) of the FID using <half_fid_substraction> algorithm
+
+        Under the assuption that the noise power spectrum is stable along the whole FID, 
+            the total noise energy in the first half of the FID is the same w.r.t the second half.
+        When the T2* is so short and the FID is so long that the observable signal dies out in the first half of the signal, 
+            the difference of the Frobius-norm between the first half and second half of the FID is then a good metric that descibes the signal intensity.
+        """
+        pos_half_f1 = int(np.ceil(int(self.params['ACQUISITION_MATRIX_DIMENSION_1D'])/2))
+        return np.sum(np.abs(self.data[...,:pos_half_f1:]), axis=1) - np.sum(np.abs(self.data[...,pos_half_f1::]), axis=1)
+
+    def _contract_f1_dfs(self):
+        """
+        Contract the direct dimension (F1) of the FID using <direct_fid_summation> algorithm
+        """
+        return np.sum(np.abs(self.data), axis=1)
+
+
+
 class SPINitSpectrum(SPINitExp):
     """
     Container class for simple 1D dataset
@@ -130,11 +178,35 @@ class SPINitEvolution(SPINitExp):
 
     def __init__(self, exp_dataset_path:str, **kwargs):
         super().__init__(exp_dataset_path, **kwargs)
-        self.processed_data = self.process_data()
+        self.bup_curve = self.process_data()
         self.fit_model = self.fit_data()
 
     def process_data(self):
-        return NotImplemented
+        delta_time = float(self.params['Polarisation_Growth_Delay'])
+        
+        if self.data_processing_params['signal_processing_method']:
+            if self.data_processing_params['signal_processing_method'] == 'global_background_estimation':
+                bup_intensity_array = self._contract_f1_gbe()
+            if self.data_processing_params['signal_processing_method'] == 'frequency_domain_summation':
+                bup_intensity_array = self._contract_f1_fds()
+            if self.data_processing_params['signal_processing_method'] == 'half_fid_substraction':
+                bup_intensity_array = self._contract_f1_hfs()                
+            if self.data_processing_params['signal_processing_method'] == 'direct_fid_summation':
+                bup_intensity_array = self._contract_f1_dfs()                
+        else:
+            bup_intensity_array = self._contract_f1_dfs()
+        
+        bup_intensity_array = bup_intensity_array[bup_intensity_array != 0]
+
+        dimension_f2 = len(bup_intensity_array) if len(bup_intensity_array) < int(self.params['ACQUISITION_MATRIX_DIMENSION_2D']) else int(self.params['ACQUISITION_MATRIX_DIMENSION_2D'])
+        
+        bup_time_array = np.cumsum(np.repeat(float(delta_time), dimension_f2))
+        if self.data_processing_params['start_timing_at_zero']:
+            bup_time_array = bup_time_array - delta_time
+
+        return (bup_time_array, bup_intensity_array)
+    
+
     
     def fit_data(self):
         return NotImplemented
@@ -148,7 +220,7 @@ class SPINitSweep(SPINitExp):
     def __init__(self, exp_dataset_path:str, **kwargs):
         super().__init__(exp_dataset_path, **kwargs)
         self.sweep_params = self._load_sweep_params()
-        self.processed_data = self.process_data()
+        self.sweep_profile = self.process_data()
 
     def _load_sweep_params(self):
         xml = ET.parse(self._file_paths['Serie'])
@@ -160,6 +232,26 @@ class SPINitSweep(SPINitExp):
         return dict(zip(params, vals))
 
     def process_data(self):
+        sweep_initial    = self.sweep_params['Initial frequency']
+        sweep_step_size  = self.sweep_params['Frequency step']
+        
+        if self.data_processing_params['signal_processing_method']:
+            if self.data_processing_params['signal_processing_method'] == 'global_background_estimation':
+                sweep_intensity_array = self._contract_f1_gbe()
+            if self.data_processing_params['signal_processing_method'] == 'frequency_domain_summation':
+                sweep_intensity_array = self._contract_f1_fds()
+            if self.data_processing_params['signal_processing_method'] == 'half_fid_substraction':
+                sweep_intensity_array = self._contract_f1_hfs()                
+            if self.data_processing_params['signal_processing_method'] == 'direct_fid_summation':
+                sweep_intensity_array = self._contract_f1_dfs()                
+        else:
+            sweep_intensity_array = self._contract_f1_dfs()
+        
+        sweep_intensity_array = sweep_intensity_array[sweep_intensity_array != 0]
 
-        return NotImplemented
+        dimension_f2 = len(sweep_intensity_array) if len(sweep_intensity_array) < int(self.params['ACQUISITION_MATRIX_DIMENSION_2D']) else int(self.params['ACQUISITION_MATRIX_DIMENSION_2D'])
+        
+        sweep_param_array = (np.repeat(float(sweep_initial), dimension_f2)+np.cumsum(np.repeat(float(sweep_step_size), dimension_f2)))-float(sweep_step_size)
+
+        return (sweep_param_array, sweep_intensity_array)
 
