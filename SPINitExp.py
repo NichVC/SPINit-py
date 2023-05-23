@@ -1,3 +1,17 @@
+"""
+Created on Tue May 23 11:07:10 2023
+
+@author: Xiao JI
+@email: xiao.ji@ucsf.edu
+@phone: +1 (919)-564-6986
+@organization: Department of Radiology, UCSF
+
+@author: Nichlas Vous Christensen
+@email: nvc@clin.au.dk
+@phone: +45 23464522
+@organization: Aarhus University, The MR Research Centre
+"""
+
 # Official packages
 import copy
 import errno
@@ -25,7 +39,7 @@ DATA_PROCESSING_PARAMETERS = {
     'signal_processing_mode'        : "Magnitude",
     'frequency_domain_upper_bound'  : None,
     'frequency_domain_lower_bound'  : None,
-    'fitting_method'                : 'mono'
+    'fitting_model'                 : 'Mono_Exp_Growth'
 }
 
 FILE_PATH_TEMPLATE = {
@@ -169,6 +183,17 @@ class SPINitExp(object):
         else:
             raise ValueError("signal_process_mode can only be chose from the three following options: Magnitude, Real, Imaginary")
 
+    def _mono_exp_growth(self,x,A,B,C):
+        return A * (1 - np.exp(-x*B)) + C
+
+    def _bi_exp_growth(self,x,A,B,C,D,E):
+        return A * (1 - np.exp(-x*B)) + C * (1 - np.exp(-x*D)) + E
+    
+    def _mono_exp_decay(self,x,A,B,C):
+        return A * np.exp(-x*B) + C
+
+    def _bi_exp_decay(self,x,A,B,C,D,E):
+        return A * (np.exp(-x*B)) + C * (np.exp(-x*D)) + E
 
 
 class SPINitSpectrum(SPINitExp):
@@ -231,20 +256,18 @@ class SPINitEvolution(SPINitExp):
         bup_time_array = bup_time_array[:-numb_points_to_remove]
         
         # Perform fitting and return fitted curve and parameters.
-        if self.data_processing_params['fitting_method'] == 'mono':
-            popt, pcov = curve_fit(self._mono_exp, bup_time_array, bup_intensity_array,p0=[np.abs(self.data.max()),1e-3,np.abs(self.data.max())/100])
-            bup_intensity_array_fitted = self._mono_exp(bup_time_array,popt[0],popt[1],popt[2])
-        elif self.data_processing_params['fitting_method'] == 'bi':
-            popt, pcov = curve_fit(self._bi_exp, bup_time_array, bup_intensity_array,p0=[np.abs(self.data.max()),1e-3,np.abs(self.data.max())/100,1e-3,np.abs(self.data.max())/100])
-            bup_intensity_array_fitted = self._bi_exp(bup_time_array,popt[0],popt[1],popt[2],popt[3],popt[4])   
+        if self.data_processing_params['fitting_model'] == 'Mono_Exp_Growth':
+            popt, pcov = curve_fit(self._mono_exp_growth, bup_time_array, bup_intensity_array,p0=[np.abs(self.data.max()),1e-3,np.abs(self.data.max())/100])
+            bup_intensity_array_fitted = self._mono_exp_growth(bup_time_array,popt[0],popt[1],popt[2])
+        elif self.data_processing_params['fitting_model'] == 'Bi_Exp_Growth':
+            popt, pcov = curve_fit(self._bi_exp_growth, bup_time_array, bup_intensity_array,p0=[np.abs(self.data.max()),1e-3,np.abs(self.data.max())/100,1e-3,np.abs(self.data.max())/100])
+            bup_intensity_array_fitted = self._bi_exp_growth(bup_time_array,popt[0],popt[1],popt[2],popt[3],popt[4])   
             
         return (bup_time_array, bup_intensity_array, bup_intensity_array_fitted, popt)
     
-    def _mono_exp(self,x,A,B,C):
-        return A * (1 - np.exp(-x*B)) + C
+    
+    
 
-    def _bi_exp(self,x,A,B,C,D,E):
-        return A * (1 - np.exp(-x*B)) + C * (1 - np.exp(-x*D)) + E
     
 
 class SPINitSweep(SPINitExp):
