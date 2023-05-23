@@ -13,6 +13,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
+from scipy.optimize import curve_fit
+
+import warnings
+  
 # In-house packages
 
 DATA_PROCESSING_PARAMETERS = {
@@ -20,7 +24,8 @@ DATA_PROCESSING_PARAMETERS = {
     'signal_processing_method'      : None,
     'signal_processing_mode'        : "Magnitude",
     'frequency_domain_upper_bound'  : None,
-    'frequency_domain_lower_bound'  : None
+    'frequency_domain_lower_bound'  : None,
+    'fitting_method'                : 'mono'
 }
 
 FILE_PATH_TEMPLATE = {
@@ -214,11 +219,33 @@ class SPINitEvolution(SPINitExp):
 
         return (bup_time_array, bup_intensity_array)
     
-
-    
     def fit_data(self):
-        return NotImplemented
+        # Supressing warning in fitting due to exp() of big numbers.
+        warnings.filterwarnings('ignore')
+        
+        # Prefiltering of data in order to remove wrongly caputered data (after dissolution).
+        bup_time_array, bup_intensity_array = self.bup_curve
+        
+        numb_points_to_remove = np.sum(bup_intensity_array[np.argmax(bup_intensity_array):]<0.5*np.max(bup_intensity_array))
+        bup_intensity_array = bup_intensity_array[:-numb_points_to_remove]
+        bup_time_array = bup_time_array[:-numb_points_to_remove]
+        
+        # Perform fitting and return fitted curve and parameters.
+        if self.data_processing_params['fitting_method'] == 'mono':
+            popt, pcov = curve_fit(self._mono_exp, bup_time_array, bup_intensity_array,p0=[np.abs(self.data.max()),1e-3,np.abs(self.data.max())/100])
+            bup_intensity_array_fitted = self._mono_exp(bup_time_array,popt[0],popt[1],popt[2])
+        elif self.data_processing_params['fitting_method'] == 'bi':
+            popt, pcov = curve_fit(self._bi_exp, bup_time_array, bup_intensity_array,p0=[np.abs(self.data.max()),1e-3,np.abs(self.data.max())/100,1e-3,np.abs(self.data.max())/100])
+            bup_intensity_array_fitted = self._bi_exp(bup_time_array,popt[0],popt[1],popt[2],popt[3],popt[4])   
+            
+        return (bup_time_array, bup_intensity_array, bup_intensity_array_fitted, popt)
+    
+    def _mono_exp(self,x,A,B,C):
+        return A * (1 - np.exp(-x*B)) + C
 
+    def _bi_exp(self,x,A,B,C,D,E):
+        return A * (1 - np.exp(-x*B)) + C * (1 - np.exp(-x*D)) + E
+    
 
 class SPINitSweep(SPINitExp):
     """
