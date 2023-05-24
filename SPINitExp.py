@@ -216,7 +216,6 @@ class SPINitEvolution(SPINitExp):
     def __init__(self, exp_dataset_path:str, **kwargs):
         super().__init__(exp_dataset_path, **kwargs)
         self.bup_curve = self.process_data()
-        self.fit_data = self.fit_data
 
     def process_data(self):
         delta_time = float(self.params['Polarisation_Growth_Delay'])
@@ -324,6 +323,9 @@ class SPINitSweep(SPINitExp):
         return dict(zip(params, vals))
 
     def process_data(self):
+        if self.sweep_params.get('Initial frequency') is None:
+            raise ValueError("Dataset is not a frequency sweep")
+            
         sweep_initial    = self.sweep_params['Initial frequency']
         sweep_step_size  = self.sweep_params['Frequency step']
         
@@ -344,6 +346,14 @@ class SPINitSweep(SPINitExp):
         dimension_f2 = len(sweep_intensity_array) if len(sweep_intensity_array) < int(self.params['ACQUISITION_MATRIX_DIMENSION_2D']) else int(self.params['ACQUISITION_MATRIX_DIMENSION_2D'])
         
         sweep_param_array = (np.repeat(float(sweep_initial), dimension_f2)+np.cumsum(np.repeat(float(sweep_step_size), dimension_f2)))-float(sweep_step_size)
-
+        
         return (sweep_param_array, sweep_intensity_array)
 
+    def plot_sweep(self):
+        plt.figure()
+        plt.plot(self.sweep_profile[0]/1e9,self.sweep_profile[1],'b*')
+        plt.plot(self.sweep_profile[0]/1e9,self.sweep_profile[1],'b-')
+        plt.xlabel('Transmitter Frequency (GHz)')
+        plt.ylabel('Integral (arb. unit)') 
+        plt.grid(True)
+        

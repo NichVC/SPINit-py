@@ -14,18 +14,13 @@ import matplotlib.pyplot as plt
 from SPINitExp import SPINitEvolution, SPINitSweep
 
 dataset_path_1106 = "./data_example/1106/"
-
-dataset_1106 = SPINitEvolution(dataset_path_1106, signal_processing_mode="Magnitude",fitting_method='mono')
-
+dataset_1106 = SPINitEvolution(dataset_path_1106, signal_processing_mode="Magnitude")
 dataset_1106.fit_data()
 
 
-
-
-
-
-
-
+dataset_path_1033 = "./data_example/1033/"
+dataset_1033 = SPINitSweep(dataset_path_1033, signal_processing_mode="Magnitude")
+dataset_1033.plot_sweep()
 
 
 
