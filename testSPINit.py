@@ -17,12 +17,7 @@ dataset_path_1106 = "./data_example/1106/"
 
 dataset_1106 = SPINitEvolution(dataset_path_1106, signal_processing_mode="Magnitude",fitting_method='mono')
 
-plt.figure()
-time_pts, intensity_pts = dataset_1106.bup_curve
-plt.scatter(x=time_pts,y=intensity_pts)
-time_pts_fit, intensity_pts, intensity_pts_fit, popt = dataset_1106.fit_model
-plt.plot(time_pts_fit,intensity_pts_fit,linewidth=3,color='k')
-plt.show()
+dataset_1106.fit_model()
 
 
 

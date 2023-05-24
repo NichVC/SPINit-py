@@ -39,7 +39,6 @@ DATA_PROCESSING_PARAMETERS = {
     'signal_processing_mode'        : "Magnitude",
     'frequency_domain_upper_bound'  : None,
     'frequency_domain_lower_bound'  : None,
-    'fitting_model'                 : 'Mono_Exp_Growth'
 }
 
 FILE_PATH_TEMPLATE = {
@@ -217,7 +216,7 @@ class SPINitEvolution(SPINitExp):
     def __init__(self, exp_dataset_path:str, **kwargs):
         super().__init__(exp_dataset_path, **kwargs)
         self.bup_curve = self.process_data()
-        self.fit_model = self.fit_data()
+        self.fit_model = self.fit_data
 
     def process_data(self):
         delta_time = float(self.params['Polarisation_Growth_Delay'])
@@ -244,29 +243,64 @@ class SPINitEvolution(SPINitExp):
 
         return (bup_time_array, bup_intensity_array)
     
-    def fit_data(self):
+    def fit_data(self,fitting_model = 'Mono_Exp_Growth', plot_bup_fit = True):
+        
+        self.fit_model = fitting_model
+        
         # Supressing warning in fitting due to exp() of big numbers.
         warnings.filterwarnings('ignore')
         
-        # Prefiltering of data in order to remove wrongly caputered data (after dissolution).
+        # Prefiltering of data in order to remove wrongly captured data (after dissolution).
         bup_time_array, bup_intensity_array = self.bup_curve
         
-        numb_points_to_remove = np.sum(bup_intensity_array[np.argmax(bup_intensity_array):]<0.5*np.max(bup_intensity_array))
+        bup_max = np.max(bup_intensity_array)
+        numb_points_to_remove = np.sum(bup_intensity_array[np.argmax(bup_intensity_array):]<0.5*bup_max)
         bup_intensity_array = bup_intensity_array[:-numb_points_to_remove]
         bup_time_array = bup_time_array[:-numb_points_to_remove]
         
         # Perform fitting and return fitted curve and parameters.
-        if self.data_processing_params['fitting_model'] == 'Mono_Exp_Growth':
-            popt, pcov = curve_fit(self._mono_exp_growth, bup_time_array, bup_intensity_array,p0=[np.abs(self.data.max()),1e-3,np.abs(self.data.max())/100])
+        if self.fit_model == 'Mono_Exp_Growth':
+            popt, pcov = curve_fit(self._mono_exp_growth, bup_time_array, bup_intensity_array,p0=[np.abs(bup_max),1e-3,np.abs(bup_max)/100])
             bup_intensity_array_fitted = self._mono_exp_growth(bup_time_array,popt[0],popt[1],popt[2])
-        elif self.data_processing_params['fitting_model'] == 'Bi_Exp_Growth':
-            popt, pcov = curve_fit(self._bi_exp_growth, bup_time_array, bup_intensity_array,p0=[np.abs(self.data.max()),1e-3,np.abs(self.data.max())/100,1e-3,np.abs(self.data.max())/100])
+        elif self.fit_model == 'Bi_Exp_Growth':
+            popt, pcov = curve_fit(self._bi_exp_growth, bup_time_array, bup_intensity_array,p0=[np.abs(bup_max),1e-3,np.abs(bup_max)/100,1e-3,np.abs(bup_max)/100])
             bup_intensity_array_fitted = self._bi_exp_growth(bup_time_array,popt[0],popt[1],popt[2],popt[3],popt[4])   
+        else:
+            raise ValueError("fitting_model can only be chose from the two following options: Mono_Exp_Growth, Bi_Exp_Growth")
             
+        self.fit_params = popt
+        self.fit_curves = (bup_time_array, bup_intensity_array, bup_intensity_array_fitted)
+            
+        if plot_bup_fit:
+            self._plot_bup_fit()
+        
         return (bup_time_array, bup_intensity_array, bup_intensity_array_fitted, popt)
     
-    
-    
+    def _plot_bup_fit(self):
+        plt.figure()
+        if self.fit_model == 'Mono_Exp_Growth':
+            half_recovery_m = int(1/self.fit_params[1]/60) # minutes
+            half_recovery_s = round(1/self.fit_params[1]%60) # seconds
+            plt.plot(self.fit_curves[0]/60,self.fit_curves[1],'b*')
+            plt.plot(self.fit_curves[0]/60,self.fit_curves[2],'k')
+            plt.xlabel('Time (min)')
+            plt.ylabel('Integral (arb. unit)')    
+            plt.grid(True)
+            plt.legend(['Datapoints',f'Fit: {self.fit_params[0]:.0f} $\cdot$ (1 - exp(-x $\cdot$ {self.fit_params[1]:.6f})) + {self.fit_params[2]:.0f}'])
+            plt.title(f'Half recovery: {half_recovery_m:.0f} min and {half_recovery_s:.0f} seconds\nMax polarization = {max(self.fit_curves[2]):.0f}')
+        elif self.fit_model == 'Bi_Exp_Growth':
+            half_recovery_m_1 = int(1/self.fit_params[1]/60) # minutes
+            half_recovery_s_1 = round(1/self.fit_params[1]%60) # seconds
+            half_recovery_m_2 = int(1/self.fit_params[3]/60) # minutes
+            half_recovery_s_2 = round(1/self.fit_params[3]%60) # seconds
+            plt.plot(self.fit_curves[0]/60,self.fit_curves[1],'b*')
+            plt.plot(self.fit_curves[0]/60,self.fit_curves[2],'k')
+            plt.xlabel('Time (min)')
+            plt.ylabel('Integral (arb. unit)')    
+            plt.grid(True)
+            plt.legend(['Datapoints',f'Fit: {self.fit_params[0]:.0f} $\cdot$ (1 - exp(-x $\cdot$ {self.fit_params[1]:.6f}))\n + {self.fit_params[2]:.0f} $\cdot$ (1 - exp(-x $\cdot$ {self.fit_params[3]:.6f})) + {self.fit_params[4]:.0f}'])
+            plt.title(f'Half recovery [1]: {half_recovery_m_1:.0f} min and {half_recovery_s_1:.0f} seconds\nHalf recovery [2]: {half_recovery_m_2:.0f} min and {half_recovery_s_2:.0f} seconds\nMax polarization = {max(self.fit_curves[2]):.0f}')
+       
 
     
 
