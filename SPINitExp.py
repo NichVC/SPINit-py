@@ -216,7 +216,7 @@ class SPINitEvolution(SPINitExp):
     def __init__(self, exp_dataset_path:str, **kwargs):
         super().__init__(exp_dataset_path, **kwargs)
         self.bup_curve = self.process_data()
-        self.fit_model = self.fit_data
+        self.fit_data = self.fit_data
 
     def process_data(self):
         delta_time = float(self.params['Polarisation_Growth_Delay'])
@@ -243,9 +243,9 @@ class SPINitEvolution(SPINitExp):
 
         return (bup_time_array, bup_intensity_array)
     
-    def fit_data(self,fitting_model = 'Mono_Exp_Growth', plot_bup_fit = True):
+    def fit_data(self,fit_model = 'Mono_Exp_Growth', plot_bup_fit = True):
         
-        self.fit_model = fitting_model
+        self.fit_model = fit_model
         
         # Supressing warning in fitting due to exp() of big numbers.
         warnings.filterwarnings('ignore')
@@ -266,7 +266,7 @@ class SPINitEvolution(SPINitExp):
             popt, pcov = curve_fit(self._bi_exp_growth, bup_time_array, bup_intensity_array,p0=[np.abs(bup_max),1e-3,np.abs(bup_max)/100,1e-3,np.abs(bup_max)/100])
             bup_intensity_array_fitted = self._bi_exp_growth(bup_time_array,popt[0],popt[1],popt[2],popt[3],popt[4])   
         else:
-            raise ValueError("fitting_model can only be chose from the two following options: Mono_Exp_Growth, Bi_Exp_Growth")
+            raise ValueError("fit_model can only be chose from the two following options: Mono_Exp_Growth, Bi_Exp_Growth")
             
         self.fit_params = popt
         self.fit_curves = (bup_time_array, bup_intensity_array, bup_intensity_array_fitted)

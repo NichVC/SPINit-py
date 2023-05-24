@@ -17,7 +17,7 @@ dataset_path_1106 = "./data_example/1106/"
 
 dataset_1106 = SPINitEvolution(dataset_path_1106, signal_processing_mode="Magnitude",fitting_method='mono')
 
-dataset_1106.fit_model()
+dataset_1106.fit_data()
 
 
 
